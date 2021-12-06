@@ -92,3 +92,33 @@ Please specify the serial number in the debug configuration.
 !MESSAGE Error in initializing ST-LINK device.
 Reason: (16) Multiple ST-LINKs detected.
 Please specify the serial number in the debug configuration.
+!SESSION 2021-11-30 11:39:35.157 -----------------------------------------------
+eclipse.buildId=Version 1.7.0
+java.version=11.0.10
+java.vendor=AdoptOpenJDK
+BootLoader constants: OS=win32, ARCH=x86_64, WS=win32, NL=en_CA
+Command-line arguments:  -os win32 -ws win32 -arch x86_64
+
+!ENTRY com.st.stm32cube.ide.mcu.informationcenter 4 4 2021-11-30 11:39:47.888
+!MESSAGE CubeMX plugin appears to be active, Log4j initialization might be too late.
+
+!ENTRY com.st.stm32cube.ide.mcu.informationcenter 1 1 2021-11-30 11:39:47.986
+!MESSAGE Log4j initialized with config file C:\Users\Oliver\Desktop\School\ECSE444_Final_Project\.metadata\.log4j.xml
+
+!ENTRY com.st.stm32cube.ide.mcu.ide 1 1 2021-11-30 11:39:57.996
+!MESSAGE Started RMI Server, listening on port 41337
+!SESSION 2021-11-30 13:37:50.660 -----------------------------------------------
+eclipse.buildId=Version 1.7.0
+java.version=11.0.10
+java.vendor=AdoptOpenJDK
+BootLoader constants: OS=win32, ARCH=x86_64, WS=win32, NL=en_CA
+Command-line arguments:  -os win32 -ws win32 -arch x86_64 -data C:\Users\Oliver\Desktop\School\ECSE444_Final_Project
+
+!ENTRY com.st.stm32cube.ide.mcu.informationcenter 4 4 2021-11-30 13:37:56.069
+!MESSAGE CubeMX plugin appears to be active, Log4j initialization might be too late.
+
+!ENTRY com.st.stm32cube.ide.mcu.informationcenter 1 1 2021-11-30 13:37:56.130
+!MESSAGE Log4j initialized with config file C:\Users\Oliver\Desktop\School\ECSE444_Final_Project\.metadata\.log4j.xml
+
+!ENTRY com.st.stm32cube.ide.mcu.ide 1 1 2021-11-30 13:38:03.603
+!MESSAGE Started RMI Server, listening on port 41337

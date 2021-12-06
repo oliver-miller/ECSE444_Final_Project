@@ -50,9 +50,9 @@ UART_HandleTypeDef huart1;
 
 /* USER CODE BEGIN PV */
 char msg_buffer[200];
+int timer = 0;
 
 // Booleans
-volatile int isRoundOver = 0;
 volatile int roundState;
 volatile int gameStart = 0;
 
@@ -120,35 +120,36 @@ int main(void)
   MX_TIM2_Init();
   MX_USART1_UART_Init();
   /* USER CODE BEGIN 2 */
+
+  // Setting up LEDs
   HAL_GPIO_WritePin(LED_GREEN_GPIO_Port, LED_GREEN_Pin, GPIO_PIN_RESET);
   HAL_GPIO_WritePin(LED_RED_GPIO_Port, LED_RED_Pin, GPIO_PIN_SET);
 
+  // Setting up first round game
   waitForGameStart();
+  currentDirective = rand() % NUMBER_OF_DIRECTIVES;
+  startNextRound(currentDirective);
+
+  // Starting sleep mode with interrupts
+  HAL_SuspendTick();
+  HAL_PWR_EnableSleepOnExit();
+  HAL_PWR_EnterSLEEPMode(PWR_MAINREGULATOR_ON, PWR_SLEEPENTRY_WFI);
+
+  // Game has ended, we need to restart the clock
+  HAL_ResumeTick();
+
+  sprintf(msg_buffer, "\n\n\n==================================================\r\n");
+  HAL_UART_Transmit(&huart1, msg_buffer, strlen((char const *) msg_buffer), TIMEOUT);
+  sprintf(msg_buffer, "Game has ended. Thank you for playing!\r\n");
+  HAL_UART_Transmit(&huart1, msg_buffer, strlen((char const *) msg_buffer), TIMEOUT);
+  sprintf(msg_buffer, "==================================================\r\n");
+  HAL_UART_Transmit(&huart1, msg_buffer, strlen((char const *) msg_buffer), TIMEOUT);
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-	  isRoundOver = 0;
-	  currentDirective = rand() % NUMBER_OF_DIRECTIVES;
-
-	  startNextRound(currentDirective);
-
-	  while(!isRoundOver);
-
-	  decideWinner();
-
-	  HAL_Delay(1000);
-
-	  updateScoreboard();
-
-	  HAL_Delay(1000);
-
-	  sprintf(msg_buffer, "Setting up next round...\r\n");
-	  HAL_UART_Transmit(&huart1, msg_buffer, strlen((char const *) msg_buffer), TIMEOUT);
-
-	  HAL_Delay(5000);
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -361,56 +362,95 @@ static void MX_GPIO_Init(void)
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
 	/*
-	 * roundState =
-	 * 		0 Player 1 - Press
-	 * 		1 Player 1 - Twist
-	 * 		2 Player 1 - Say
-	 * 		3 Player 2 - Press
-	 * 		4 Player 2 - Twist
-	 * 		5 Player 2 - Say
+	 * BUTTON PIN INTERRUPTS
+	 * 1st: start the game
+	 * 2nd: end the game
 	 */
-	isRoundOver = 1;
-
-	if (GPIO_Pin == ACC_IN_1_Pin)
-	{
-		HAL_GPIO_TogglePin(LED_GREEN_GPIO_Port, LED_GREEN_Pin);
-		roundState = 1;
-	}
-	if (GPIO_Pin == ACC_IN_2_Pin)
-	{
-		HAL_GPIO_TogglePin(LED_RED_GPIO_Port, LED_RED_Pin);
-		roundState = 4;
-	}
-
-	if (GPIO_Pin == BUTTON_IN_1_Pin){
-		HAL_GPIO_TogglePin(LED_GREEN_GPIO_Port, LED_GREEN_Pin);
-		roundState = 0;
-	}
-	if (GPIO_Pin == BUTTON_IN_2_Pin){
-		HAL_GPIO_TogglePin(LED_RED_GPIO_Port, LED_RED_Pin);
-		roundState = 3;
-	}
-
-	if (GPIO_Pin == MIC_IN_1_Pin){
-		HAL_GPIO_TogglePin(LED_GREEN_GPIO_Port, LED_GREEN_Pin);
-		roundState = 2;
-	}
-	if (GPIO_Pin == MIC_IN_2_Pin){
-		HAL_GPIO_TogglePin(LED_RED_GPIO_Port, LED_RED_Pin);
-		roundState = 5;
-	}
-	if (GPIO_Pin == Button_Pin){
+	if (GPIO_Pin == Button_Pin && gameStart == 0){
 		gameStart = 1;
+
+	} else if (GPIO_Pin == Button_Pin && gameStart == 1){
+		//game is over
+		HAL_PWR_DisableSleepOnExit();
+
+
+	} else {
+		/*
+		 * Players interrupts
+		 * each will trigger a different interrupt
+		 *
+		 * roundState =
+		 * 		0 Player 1 - Press
+		 * 		1 Player 1 - Twist
+		 * 		2 Player 1 - Say
+		 * 		3 Player 2 - Press
+		 * 		4 Player 2 - Twist
+		 * 		5 Player 2 - Say
+		 */
+
+		if (GPIO_Pin == ACC_IN_1_Pin)
+		{
+			HAL_GPIO_TogglePin(LED_GREEN_GPIO_Port, LED_GREEN_Pin);
+			roundState = 1;
+		}
+		if (GPIO_Pin == ACC_IN_2_Pin)
+		{
+			HAL_GPIO_TogglePin(LED_RED_GPIO_Port, LED_RED_Pin);
+			roundState = 4;
+		}
+
+		if (GPIO_Pin == BUTTON_IN_1_Pin){
+			HAL_GPIO_TogglePin(LED_GREEN_GPIO_Port, LED_GREEN_Pin);
+			roundState = 0;
+		}
+		if (GPIO_Pin == BUTTON_IN_2_Pin){
+			HAL_GPIO_TogglePin(LED_RED_GPIO_Port, LED_RED_Pin);
+			roundState = 3;
+		}
+
+		if (GPIO_Pin == MIC_IN_1_Pin){
+			HAL_GPIO_TogglePin(LED_GREEN_GPIO_Port, LED_GREEN_Pin);
+			roundState = 2;
+		}
+		if (GPIO_Pin == MIC_IN_2_Pin){
+			HAL_GPIO_TogglePin(LED_RED_GPIO_Port, LED_RED_Pin);
+			roundState = 5;
+		}
+
+		HAL_GPIO_TogglePin(RESET_P1_GPIO_Port, RESET_P1_Pin);
+		HAL_GPIO_TogglePin(RESET_P2_GPIO_Port, RESET_P2_Pin);
+
+		decideWinner();
+//		HAL_Delay(1000);
+		while (timer < 5000000) {
+			timer++;
+		}
+		timer = 0;
+
+		updateScoreboard();
+
+//		HAL_Delay(1000);
+		while (timer < 5000000) {
+			timer++;
+		}
+		timer = 0;
+
+		sprintf(msg_buffer, "Setting up next round...\r\n");
+		HAL_UART_Transmit(&huart1, msg_buffer, strlen((char const *) msg_buffer), TIMEOUT);
+
+//		HAL_Delay(5000);
+		while (timer < 25000000) {
+			timer++;
+		}
+		timer = 0;
+
+		currentDirective = rand() % NUMBER_OF_DIRECTIVES;
+		startNextRound(currentDirective);
+
+		//	HAL_Delay(1000);
+		//	HAL_GPIO_WritePin(LED_GREEN_GPIO_Port, LED_GREEN_Pin, GPIO_PIN_RESET);
+		//    HAL_GPIO_WritePin(LED_RED_GPIO_Port, LED_RED_Pin, GPIO_PIN_SET);
 	}
-
-
-	HAL_GPIO_TogglePin(RESET_P1_GPIO_Port, RESET_P1_Pin);
-	HAL_GPIO_TogglePin(RESET_P2_GPIO_Port, RESET_P2_Pin);
-
-//	HAL_Delay(1000);
-//	HAL_GPIO_WritePin(LED_GREEN_GPIO_Port, LED_GREEN_Pin, GPIO_PIN_RESET);
-//    HAL_GPIO_WritePin(LED_RED_GPIO_Port, LED_RED_Pin, GPIO_PIN_SET);
-
 }
 
 void waitForGameStart(void) {
@@ -460,15 +500,24 @@ void startNextRound(int dir) {
 	HAL_UART_Transmit(&huart1, msg_buffer, strlen((char const *) msg_buffer), TIMEOUT);
 	sprintf(msg_buffer, "3...\r\n");
 	HAL_UART_Transmit(&huart1, msg_buffer, strlen((char const *) msg_buffer), TIMEOUT);
-	HAL_Delay(1000);
+	while (timer < 5000000) {
+		timer++;
+	}
+	timer = 0;
 
 	sprintf(msg_buffer, "2...\r\n");
 	HAL_UART_Transmit(&huart1, msg_buffer, strlen((char const *) msg_buffer), TIMEOUT);
-	HAL_Delay(1000);
+	while (timer < 5000000) {
+		timer++;
+	}
+	timer = 0;
 
 	sprintf(msg_buffer, "1...\r\n");
 	HAL_UART_Transmit(&huart1, msg_buffer, strlen((char const *) msg_buffer), TIMEOUT);
-	HAL_Delay(1000);
+	while (timer < 5000000) {
+		timer++;
+	}
+	timer = 0;
 
 	sprintf(msg_buffer, "%s\r\n", directives[dir]);
 	HAL_UART_Transmit(&huart1, msg_buffer, strlen((char const *) msg_buffer), TIMEOUT);
@@ -522,6 +571,7 @@ void updateScoreboard(void) {
 	sprintf(msg_buffer, "\tPlayer 2: %d\r\n", p2Score);
 	HAL_UART_Transmit(&huart1, msg_buffer, strlen((char const *) msg_buffer), TIMEOUT);
 }
+
 /* USER CODE END 4 */
 
 /**
